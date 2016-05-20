@@ -13,9 +13,12 @@ containers:
       - !Container base
       - !Install
         - postgresql-server-dev-9.3
+      - !Py3Install [pip]
       - !Py3Install
-        - setuptools
+        - setuptools==19.6.2
         - pyramid==1.6.1
+        - pytest==2.7.2
+        - py
       - !Sh python3 setup.py develop
 
   postgres:
@@ -86,10 +89,20 @@ commands:
     children:
       redis: *redis
       postgres: *postgres
-      run: !Command
+      pyramid: !Command
         container: pyramid
         run: |
           pserve development.ini
+
+  test: !Supervise
+    description: Run unit tests for project
+    children:
+      redis: *redis
+      postgres: *postgres
+      pyramid: !Command
+        container: pyramid
+        run: |
+          py.test pyramid_test/tests.py -q
 
   webpack: !Command
     description: Run build of webpack
