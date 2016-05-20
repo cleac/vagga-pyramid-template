@@ -1,0 +1,98 @@
+containers:
+
+  base:
+    setup:
+      - !Ubuntu trusty
+      - !UbuntuUniverse
+      - !Install
+        - python3
+        - git
+
+  pyramid:
+    setup:
+      - !Container base
+      - !Install
+        - postgresql-server-dev-9.3
+      - !Py3Install
+        - setuptools
+        - pyramid==1.6.1
+      - !Sh python3 setup.py develop
+
+  postgres:
+    setup:
+      - !Container base
+      - !Install
+        - postgresql-9.3
+        - postgresql-client-9.3
+      - !EnsureDir /data
+    environ:
+      PG_PORT: 5433
+      PG_DB: hrportal
+      PG_USER: hrportal
+      PG_PASSWORD: hrportal
+      PGDATA: /data
+      PG_BIN: /usr/lib/postgresql/9.3/bin
+    volumes:
+      /data: !Snapshot
+        size: 1G
+
+  nodejs:
+    setup:
+      - !Container base
+      - !Install [nodejs]
+      - !Sh ln -s /usr/bin/nodejs /usr/bin/node
+      - !NpmInstall
+        - webpack@1.13
+        - stylus@0.54.5
+      - !Sh npm install && npm install --dev
+
+  redis:
+    setup:
+      - !Alpine v3.2
+      - !Install [redis]
+
+commands:
+
+  postgres: &postgres !Command
+    description: Run PostgreSQL server
+    container: postgres
+    run: |
+      chown postgres:postgres $PGDATA;
+      su postgres -c "$PG_BIN/pg_ctl initdb";
+      su postgres -c "$PG_BIN/pg_ctl -w -o '-F --port=$PG_PORT -k /tmp' start";
+      su postgres -c "$PG_BIN/psql -h 127.0.0.1 -p $PG_PORT -c \"CREATE USER $PG_USER WITH PASSWORD '$PG_PASSWORD';\""
+      su postgres -c "$PG_BIN/createdb -h 127.0.0.1 -p $PG_PORT $PG_DB -O $PG_USER";
+      sleep infinity
+
+  psql: !Command
+    description: Run PostgreSQL shell inside container
+    container: postgres
+    prerequisites: [postgres]
+    run: psql postgres://$PG_USER:$PG_PASSWORD@127.0.0.1/$PG_DB
+
+  redis: &redis !Command
+    description: Run Redis server inside container
+    container: redis
+    run: redis-server --daemonize no
+
+  redis-cli: !Command
+    description: Run Redis server inside container
+    container: redis
+    prerequisites: [redis]
+    run: [redis-cli]
+
+  serve: !Supervise
+    description: Run server in serve mode (all elements that are user are included)
+    children:
+      redis: *redis
+      postgres: *postgres
+      run: !Command
+        container: pyramid
+        run: |
+          pserve development.ini
+
+  webpack: !Command
+    description: Run build of webpack
+    container: nodejs
+    run: |
+      webpack

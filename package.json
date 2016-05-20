@@ -1,0 +1,19 @@
+{
+  "name": "Pyramid Vagga template",
+  "version": "0.1.0",
+  "description": "",
+  "main": "webpack.config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "react": "^15.0.2",
+    "bazooka": "^0.5.0",
+    "rx": "^4.1.0"
+  },
+  "devDependencies": {
+    "babel-loader": "^6.2.4 "
+  },
+  "author": "Alexander Nesterenko <alexcleac@gmail.com>",
+  "license": "MIT"
+}
